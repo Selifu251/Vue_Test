@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta charset="utf8" >
+    </head>
+    <body>
+        <h3>模板練習作業：Ajax 資料內容呈現</h3>
+        <p>本作業一定要用到元件。</p>
+        <div class="alert alert-secondary">
+            <p>提示：</p>
+            <ol class="mb-0">
+                <li>將資料內容透過 "元件" 呈現</li>
+                <li>製作城市過濾選項</li>
+                <li>將內層資料透過 emit 傳遞到外層 (作為另一個關注城市的呈現)</li>
+                <li>依據不同污染呈現不同色彩</li>
+                <li>加分題：透過 localStorage 儲存上次關注的城市</li>
+            </ol>
+        </div>
+
+        <div id="app">
+            <select name="selCity" id="selcity" class="form-control mb-3" v-model="filter">
+                <option value="">--- 請選擇城市 ---</option>
+                <option v-for="county in location" :value="county">{{ county }}</option>
+            </select>
+            <div>
+                <h4>關注城市</h4>
+                <div class="card-columns">
+                    <epacity-component :fas-class="{'fas':true}" v-for="(item, key) in stared" :choose-city="item" :key="item.SiteName" @bool-star="toStar"></epacity-component>
+                </div>
+            </div>
+  
+            <hr>
+            <div class="card-columns">
+                <epacity-component :fas-class="{'far':true}" v-for="(item, key) in filterArr" :choose-city="item" :key="item.SiteName" @bool-star="toStar"></epacity-component>
+            </div>
+        </div>
+
+        
+        <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+        <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+
+        <!-- template -->
+        <script type="text/x-template" id="epacity-component">
+            <div>
+                <div class="card" :class="{
+                    'status-aqi2': chooseCity.Status == '普通',
+                    'status-aqi3': chooseCity.Status == '對敏感族群不健康',
+                    'status-aqi4': chooseCity.Status == '對所有族群不健康',
+                    'status-aqi5': chooseCity.Status == '非常不健康',
+                    'status-aqi6': chooseCity.Status == '危害'
+                }">
+                    <div class="card-header">{{ chooseCity.County }} - {{ nowSite }}
+                        <a href="#" class="float-right" :class="nowSite" @click="plusStar"><i class="fa-star" :class="fasClass"></i></a>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled">
+                            <li>AQI 指數: {{ chooseCity.AQI }}</li>
+                            <li>PM2.5: {{ chooseCity['PM2.5'] }}</li>
+                            <li>說明: {{ chooseCity.Status }}</li>
+                        </ul>
+                        {{chooseCity.PublishTime}}
+                    </div>
+                </div>
+            </div>
+        </script>
+
+        <script>
+            // component
+            Vue.component ('epacity-component', {
+                props: {
+                    chooseCity: {}, //選擇城市
+                    fasClass: {}, // <i>class: fas, far(<i>隱藏前)
+                },
+                data: function(){
+                    return {
+                        siteClass: this.chooseCity.SiteName, // class: 城市區域
+                    }
+                },
+                template: '#epacity-component',
+                methods: {
+                    plusStar: function(){
+                        console.log('PlusStar');
+                        this.$emit('bool-star', this.chooseCity); //元件@bool-star綁事件
+                    }
+                },
+                computed: { // 隨時監聽資料
+                    nowSite: function(){ // 資料 nowSite
+                        return this.siteClass = this.chooseCity.SiteName; // class: 城市區域 
+                    }
+                },
+            })
+
+            // API 來源
+            // https://opendata.epa.gov.tw/Data/Contents/AQI/
+
+            var app = new Vue({
+                el: '#app',
+                data: {
+                    data: [], // Ajax所抓的資料
+                    location: [], // 城市陣列
+                    stared: [], // 關注陣列
+                    filter: '', // 目前所選城市
+                    filterArr: [], // 所選城市所有區域陣列
+                },
+                // 請在此撰寫 JavaScript
+                methods: {
+                    toStar: function(item){
+                    console.log('ToStar'); //toStar: 加入關注 星星變色
+                    var vm = this;
+                    var stared = vm.stared;
+                    var tobool = false;
+                    var key = -1;
+                    console.log(stared);
+                    if(stared.length==0){ // 關注陣列為空 可push
+                        console.log('空集合');
+                        tobool = true;
+                    }else{
+                        stared.some(function(sitem, skey){
+                        // console.log(sitem.SiteName==item.SiteName, sitem.SiteName, item.SiteName);
+                        if(sitem.SiteName==item.SiteName){ // 在關注陣列內 可pop
+                            tobool = false;
+                            key = skey;
+                            return true;
+                        }else{ // 不再關注陣列內 可push
+                            tobool = true;
+                        }
+                        });
+                    }
+                    if(tobool){ // push關注陣列 改變<svg>的'data-prefix'變為'fas'[有色]
+                        stared.push(item);
+                        var chooseSite = document.getElementsByClassName(item.SiteName)[0];
+                        chooseSite.getElementsByTagName('svg')[0].setAttribute('data-prefix','fas');
+                    }else{ // pop關注陣列 改變<svg>的'data-prefix'變為'far'[無色]
+                        console.log('key', key);
+                        stared.splice(key,1);
+                        var chooseSite = document.getElementsByClassName(item.SiteName)[1];
+                        chooseSite.getElementsByTagName('svg')[0].setAttribute('data-prefix','far');
+                    }
+                    vm.stared = stared; // 關注陣列更新
+                    },
+                },
+                created() {
+                    console.log('Created'); // 屬性綁定 'el' 創建前
+                    const vm = this;
+                    const api = 'http://opendata2.epa.gov.tw/AQI.json';
+
+                    // 使用 jQuery ajax
+                    $.get(api).then(function( response ) {
+                        vm.data = response; // vm.data 更新資料
+                        var data = JSON.parse(JSON.stringify(vm.data));
+                        var location = JSON.parse(JSON.stringify(vm.location));
+                        
+                        data.forEach(function(item){
+                        if(location.indexOf(item.County) == -1){
+                            location.push(item.County);
+                        }
+                        });
+                        vm.location = location; // vm.location 更新資料
+                        data.forEach(function(item){
+                        location.forEach(function(city){
+                            if(city==item.County){
+                            }
+                        })
+                        });
+                        vm.filterArr = data; // vm.filterArr 更新資料
+                    });
+                },
+                beforeUpdate() {
+                    console.log('BeforeUpdate'); // 更新　data物件　前
+                    if(this.filter != ''){ // 當有選擇城市時
+                    var vm = this;
+                    var data = JSON.parse(JSON.stringify(vm.data)); // 將vue的監聽去掉的 data
+                    var filterArr= []; // 所選城市所有區域陣列 清空
+                    data.forEach(function(item){
+                        if(item.County == vm.filter){ // 在所選城市的區域 push
+                        filterArr.push(item);
+                        }
+                    });
+                    vm.filterArr = filterArr; // 所選城市區域陣列 更新
+                    vm.filter = ''; // 所選城市 清空
+                    }
+                },
+                updated() {
+                    console.log('Update'); // data物件 更新後
+                    var vm = this;
+                    var stared= JSON.parse(JSON.stringify(vm.stared)); //將vue的監聽去掉的 stared
+                    var filterArr= JSON.parse(JSON.stringify(vm.filterArr)); //將vue的監聽去掉的 filterArr
+
+                    if(vm.stared.length!=0){ // 關注陣列　不為空
+                        vm.stared.forEach(function(s_item, skey){
+                            filterArr.some(function(f_item, f_key){
+                                if(f_item.SiteName == s_item.SiteName){ // 所選城市區域　有在　關注陣列中
+                                // console.log('f-chooseSite',document.getElementsByClassName(f_item.SiteName));
+                                var chooseSite = document.getElementsByClassName(f_item.SiteName)[1]; // 從'區域class'抓取下方標籤
+                                // console.log('f-chooseSite[1]',chooseSite);
+                                // console.log('svg', chooseSite.getElementsByTagName('svg'));
+                                // console.log('i[0]', chooseSite.getElementsByTagName('i')[0]);
+                                if(chooseSite.getElementsByTagName('i')[0]){ // 更改<i>class:'fas-star fas'(<i>隱藏前)
+                                    chooseSite.getElementsByTagName('i')[0].setAttribute('class', 'fa-star fas');
+                                }
+                                return true; // 跳出迴圈
+                                }
+                            });
+                        });
+                    }
+                },
+
+            });
+        </script>
+        <!-- 
+        狀態對應表
+        '良好',
+        'status-aqi2' '普通',
+        'status-aqi3' '對敏感族群不健康',
+        'status-aqi4' '對所有族群不健康',
+        'status-aqi5' '非常不健康',
+        'status-aqi6' '危害'
+        --> 
+        <style>
+            .status-aqi2 {
+            background-color: #ffff00;
+            }
+            .status-aqi3 {
+            background-color: #ff7e00;
+            }
+            .status-aqi4 {
+            background-color: #ff0000;
+            }
+            .status-aqi5 {
+            background-color: #8f3f97;
+            }
+            .status-aqi6 {
+            background-color: #7e0023;
+            }
+        </style>
+
+ 
+        </div>
+      </div>
+    </div>
+    </body>
+</html>
